@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Vyhraj 300 Kč – Důlní Match 3</title>
+<style>
+  :root {
+    --cell: 52px;
+    --gap: 2px;
+
+    --wood-light: #c9884a;
+    --wood: #8c5a2b;
+    --wood-dark: #5c3a1e;
+    --wood-darker: #3d2817;
+
+    --cave: #4a2c15;
+    --cave-dark: #2a1810;
+    --dirt: #6b3f1f;
+    --dirt-light: #8b5a2b;
+
+    --stone: #3a3a3a;
+    --stone-light: #5a5a5a;
+
+    --gold: #ffd54f;
+    --gold-deep: #f9a825;
+
+    --text: #f4e4bc;
+    --text-dim: #c8a878;
+    --accent: #2e7d32;
+    --accent-bright: #4caf50;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    background: #1a0f08 url('assets/bg_summer_2.jpg') center center / cover no-repeat fixed;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    overflow-x: hidden;
+    position: relative;
+  }
+  /* darken edges for better game UI contrast */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at center, transparent 30%, rgba(0, 0, 0, 0.5) 100%);
+    z-index: 0;
+  }
+
+  /* Outer container — sits transparently over the body's cave scene bg */
+  .game {
+    width: 100%;
+    max-width: 460px;
+    padding: 14px 14px 18px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header: balance + moves + total-win */
+  .header {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    margin-bottom: 10px;
+    z-index: 2;
+  }
+
+  .balance {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--gold);
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 0 6px rgba(0, 0, 0, 0.7);
+    letter-spacing: 0.5px;
+    background: rgba(0, 0, 0, 0.45);
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.5);
+  }
+
+  .moves-sign {
+    background:
+      linear-gradient(180deg, var(--wood-light) 0%, var(--wood) 50%, var(--wood-dark) 100%);
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 2px solid var(--wood-darker);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 220, 180, 0.35),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.35),
+      0 4px 12px rgba(0, 0, 0, 0.45);
+    text-align: center;
+    min-width: 110px;
+    position: relative;
+  }
+  .moves-sign::before,
+  .moves-sign::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 6px; height: 6px;
+    background: #1a0a02;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  .moves-sign::before { left: 4px; }
+  .moves-sign::after  { right: 4px; }
+
+  .moves-sign .label {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: var(--wood-darker);
+    text-transform: uppercase;
+    display: inline-block;
+  }
+  .moves-sign .value {
+    font-size: 22px;
+    font-weight: 900;
+    color: #fff8e1;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+    margin: 0 6px;
+    line-height: 1;
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .total-win {
+    text-align: right;
+    background: rgba(0, 0, 0, 0.45);
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.5);
+  }
+  .total-win .label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .total-win .value {
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+    line-height: 1.1;
+  }
+
+  /* Progress bars panel — dark stone plaque */
+  .bars {
+    background:
+      linear-gradient(180deg, #2a1c12 0%, #1a0f08 100%);
+    border: 2px solid var(--wood-dark);
+    border-radius: 10px;
+    padding: 8px 6px;
+    margin-bottom: 10px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+      0 4px 10px rgba(0, 0, 0, 0.5);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 8px;
+  }
+
+  .bar {
+    display: grid;
+    grid-template-columns: 26px 1fr 22px;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 2px;
+    position: relative;
+    transition: transform 0.2s;
+  }
+
+  .bar-icon {
+    width: 26px; height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+  }
+  .bar-icon svg { width: 100%; height: 100%; }
+
+  .bar-main {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .bar-value {
+    font-size: 11px;
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+    line-height: 1;
+    letter-spacing: 0.3px;
+  }
+
+  .bar-track {
+    position: relative;
+    height: 7px;
+    background: #0f0804;
+    border: 1px solid #000;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
+  }
+
+  .bar-fill {
+    position: absolute;
+    top: 0; bottom: 0; left: 0;
+    width: 0%;
+    border-radius: 5px;
+    transition: width 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+    background: linear-gradient(180deg, #ffe082 0%, #ffa726 50%, #e65100 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+  }
+
+  .bar-count {
+    width: 22px; height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 900;
+    color: #fff;
+    background: radial-gradient(circle at 30% 30%, var(--accent-bright), var(--accent));
+    border: 1.5px solid #1b3d1e;
+    border-radius: 50%;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      0 1px 2px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+  }
+
+  .bar.complete .bar-count {
+    background: radial-gradient(circle at 30% 30%, #fff176, var(--gold-deep));
+    border-color: #6b3b00;
+    color: #3b2000;
+    animation: countBounce 0.7s ease;
+  }
+  .bar.filled { animation: barFlash 0.7s ease; }
+
+  @keyframes countBounce {
+    0%, 100% { transform: scale(1); }
+    40%      { transform: scale(1.35); }
+  }
+  @keyframes barFlash {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.05); filter: brightness(1.3); }
+  }
+
+  /* Board: cave interior with wooden frame */
+  .board-wrap {
+    position: relative;
+    margin: 0 auto;
+    width: calc(6 * var(--cell) + 5 * var(--gap) + 16px);
+    padding: 8px;
+    background:
+      /* wood grain frame */
+      linear-gradient(180deg, var(--wood) 0%, var(--wood-dark) 100%);
+    border-radius: 8px;
+    box-shadow:
+      inset 0 2px 0 rgba(255, 220, 180, 0.2),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.5),
+      0 6px 18px rgba(0, 0, 0, 0.55);
+  }
+  .board-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 6px;
+    pointer-events: none;
+    background:
+      repeating-linear-gradient(90deg,
+        transparent 0 14px,
+        rgba(0, 0, 0, 0.12) 14px 15px),
+      repeating-linear-gradient(0deg,
+        transparent 0 20px,
+        rgba(0, 0, 0, 0.18) 20px 21px);
+    opacity: 0.5;
+    mix-blend-mode: multiply;
+  }
+
+  .grid {
+    position: relative;
+    width: calc(6 * var(--cell) + 5 * var(--gap));
+    height: calc(7 * var(--cell) + 6 * var(--gap));
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 4px;
+    background:
+      /* cave dirt with subtle radial shadow */
+      radial-gradient(ellipse at 50% 35%, rgba(255, 180, 100, 0.12) 0%, transparent 55%),
+      linear-gradient(180deg, #5c3820 0%, #3d2817 60%, #2a1810 100%);
+    box-shadow:
+      inset 0 4px 12px rgba(0, 0, 0, 0.55),
+      inset 0 -2px 8px rgba(0, 0, 0, 0.4);
+    touch-action: none;
+  }
+
+  /* subtle grid cell outlines for "mine grid" feel */
+  .grid::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(90deg, rgba(0, 0, 0, 0.25) 1px, transparent 1px),
+      linear-gradient(0deg,  rgba(0, 0, 0, 0.25) 1px, transparent 1px);
+    background-size: calc(var(--cell) + var(--gap)) calc(var(--cell) + var(--gap));
+    background-position: -1px -1px;
+    opacity: 0.6;
+    mix-blend-mode: multiply;
+  }
+
+  .tile {
+    position: absolute;
+    width: var(--cell);
+    height: var(--cell);
+    transition: transform 0.28s cubic-bezier(0.22, 0.8, 0.36, 1), opacity 0.2s ease;
+    cursor: grab;
+    will-change: transform;
+  }
+  .tile:active { cursor: grabbing; }
+
+  .tile-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, filter 0.2s;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+  }
+
+  .sym-img {
+    width: 82%;
+    height: 82%;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    pointer-events: none;
+  }
+  .sym-img-0 { background-image: url('assets/sym_sapphire.webp'); }
+  .sym-img-1 { background-image: url('assets/sym_nugget.webp'); }
+  .sym-img-2 { background-image: url('assets/sym_pouch.webp'); }
+  .sym-img-3 { background-image: url('assets/sym_bucket.webp'); }
+  .sym-img-4 { background-image: url('assets/sym_minecart.webp'); }
+  .sym-img-5 { background-image: url('assets/sym_goldbars.webp'); }
+
+  .tile.selected .tile-inner {
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 6px rgba(255, 213, 79, 0.9)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+  }
+
+  .tile.matched .tile-inner { animation: pop 0.32s forwards ease-out; }
+  @keyframes pop {
+    0%   { transform: scale(1) rotate(0deg); }
+    40%  { transform: scale(1.35) rotate(8deg); }
+    100% { transform: scale(0) rotate(-20deg); opacity: 0; }
+  }
+
+  .tile.fall-in { animation: fallFade 0.3s ease-out; }
+  @keyframes fallFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .tile.hint .tile-inner {
+    animation: hintNudge 2.6s ease-in-out infinite;
+  }
+  @keyframes hintNudge {
+    0%,  72%, 100% { transform: translate(0, 0); }
+    8%,  24%       { transform: translate(var(--hint-dx, 0), var(--hint-dy, 0)); }
+    16%            { transform: translate(0, 0); }
+  }
+
+  .tile.dragging { z-index: 10; }
+  .tile.dragging .tile-inner {
+    filter: drop-shadow(0 0 8px rgba(255, 213, 79, 0.8)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7));
+    transform: scale(1.08);
+  }
+
+  /* Mascot hidden — the cave scene itself is the visual focal point */
+  .mascot { display: none; }
+
+  /* CTA / game-over overlay */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 5, 2, 0.88);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 16px;
+  }
+  .overlay.show { display: flex; animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .win-card {
+    position: relative;
+    background:
+      radial-gradient(ellipse at 50% 0%, #ffecb3 0%, transparent 70%),
+      linear-gradient(160deg, #f9a825 0%, #c62828 100%);
+    padding: 40px 28px 28px;
+    border-radius: 22px;
+    border: 4px solid var(--wood-dark);
+    text-align: center;
+    max-width: 360px;
+    width: 100%;
+    box-shadow:
+      0 30px 70px rgba(0, 0, 0, 0.7),
+      inset 0 2px 0 rgba(255, 255, 255, 0.3),
+      inset 0 -4px 0 rgba(0, 0, 0, 0.3);
+    animation: winPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+    overflow: hidden;
+  }
+  @keyframes winPop {
+    from { transform: scale(0.4) rotate(-6deg); opacity: 0; }
+    to   { transform: scale(1) rotate(0); opacity: 1; }
+  }
+
+  .win-card::before,
+  .win-card::after {
+    content: '';
+    position: absolute;
+    width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(255, 236, 179, 0.55) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .win-card::before { top: -70px; left: -70px; }
+  .win-card::after  { bottom: -70px; right: -70px; }
+
+  .win-title {
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #fff3d4;
+    opacity: 0.9;
+    margin-bottom: 4px;
+  }
+  .win-amount {
+    font-size: 64px;
+    font-weight: 900;
+    color: #fff8e1;
+    text-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 24px rgba(255, 213, 79, 0.5);
+    line-height: 1;
+    margin: 6px 0 12px;
+  }
+  .win-message { font-size: 15px; color: #fff8e1; margin-bottom: 22px; line-height: 1.4; }
+
+  .cta {
+    display: inline-block;
+    background: linear-gradient(180deg, var(--accent-bright) 0%, var(--accent) 100%);
+    color: #fff;
+    padding: 15px 32px;
+    border-radius: 28px;
+    text-decoration: none;
+    font-weight: 900;
+    font-size: 16px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: 2px solid #1b3d1e;
+    box-shadow:
+      inset 0 2px 0 rgba(255, 255, 255, 0.35),
+      inset 0 -3px 0 rgba(0, 0, 0, 0.3),
+      0 6px 16px rgba(0, 0, 0, 0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .cta:hover, .cta:active {
+    transform: translateY(-2px) scale(1.04);
+    box-shadow:
+      inset 0 2px 0 rgba(255, 255, 255, 0.4),
+      inset 0 -3px 0 rgba(0, 0, 0, 0.3),
+      0 8px 20px rgba(0, 0, 0, 0.5);
+  }
+
+  .confetti {
+    position: absolute;
+    top: -10%;
+    width: 8px; height: 14px;
+    pointer-events: none;
+    animation: confettiFall linear forwards;
+  }
+  @keyframes confettiFall {
+    to { transform: translateY(800px) rotate(720deg); opacity: 0; }
+  }
+
+  /* Responsive */
+  @media (max-width: 420px) {
+    :root { --cell: 48px; }
+    .win-amount { font-size: 54px; }
+    .moves-sign { min-width: 95px; padding: 6px 12px; }
+  }
+  @media (max-width: 380px) {
+    :root { --cell: 44px; --gap: 2px; }
+    .bars { grid-template-columns: 1fr; }
+    .bar-value { font-size: 10px; }
+    .bar-count { width: 20px; height: 20px; font-size: 10px; }
+  }
+  @media (max-width: 340px) {
+    :root { --cell: 40px; }
+  }
+</style>
+</head>
+<body>
+  <div class="game" id="game">
+    <!-- Prospector mascot (CSS-drawn) -->
+    <svg class="mascot" viewBox="0 0 64 90" aria-hidden="true">
+      <!-- hat -->
+      <ellipse cx="32" cy="26" rx="28" ry="4" fill="#4a2c15"/>
+      <path d="M14 25 Q 18 10 32 10 Q 46 10 50 25 Z" fill="#6b3f1f"/>
+      <path d="M16 25 Q 20 14 32 14 Q 44 14 48 25 Z" fill="#8b5a2b" opacity=".5"/>
+      <!-- face -->
+      <ellipse cx="32" cy="38" rx="16" ry="14" fill="#f4cfa6"/>
+      <!-- beard -->
+      <path d="M16 38 Q 18 70 32 74 Q 46 70 48 38 Q 40 52 32 50 Q 24 52 16 38 Z" fill="#f5f1e8"/>
+      <!-- moustache -->
+      <path d="M22 42 Q 26 46 32 44 Q 38 46 42 42 Q 38 48 32 47 Q 26 48 22 42 Z" fill="#e4dcca"/>
+      <!-- eyes -->
+      <circle cx="26" cy="34" r="1.7" fill="#2a1810"/>
+      <circle cx="38" cy="34" r="1.7" fill="#2a1810"/>
+      <!-- nose -->
+      <ellipse cx="32" cy="40" rx="3" ry="2.4" fill="#d9996b"/>
+      <!-- scarf -->
+      <path d="M16 52 Q 32 60 48 52 L 52 60 Q 32 68 12 60 Z" fill="#c62828"/>
+      <!-- body -->
+      <path d="M12 66 L 52 66 L 54 90 L 10 90 Z" fill="#3f6da8"/>
+      <path d="M22 66 L 42 66 L 44 90 L 20 90 Z" fill="#5584c0" opacity=".6"/>
+    </svg>
+
+    <div class="header">
+      <div class="balance">FunPark</div>
+      <div class="moves-sign">
+        <span class="label">Zbývá</span>
+        <span class="value" id="moves-display">15</span>
+        <span class="label">tahů</span>
+      </div>
+      <div class="total-win">
+        <div class="label">Výhra</div>
+        <div class="value" id="win-display">0 Kč</div>
+      </div>
+    </div>
+
+    <div class="bars" id="bars"></div>
+
+    <div class="board-wrap">
+      <div class="grid" id="grid"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="win-card">
+      <div class="win-title">Výhra</div>
+      <div class="win-amount" id="win-amount">300 Kč</div>
+      <div class="win-message" id="win-message">Gratulujeme, vyhráli jste 300 Kč! Registrujte se a vyzvedněte si svou výhru.</div>
+      <a href="#" class="cta" id="cta-btn">Získat výhru</a>
+    </div>
+  </div>
+
+<script>
+/* =========================================================================
+   GAME CONFIG — edit these to tune the game
+   ========================================================================= */
+const gameConfig = {
+  moves: 15,
+  finalWin: 300,
+  ctaUrl: 'https://example.com/registrace',
+  ctaText: 'Vyzvednout 300 Kč',
+  winTitle: 'Výhra',
+  winMessage: 'Gratulujeme, vyhráli jste 300 Kč! Registrujte se a vyzvedněte si svou výhru.',
+  currency: 'Kč',
+  gridCols: 6,
+  gridRows: 7,
+  bars: [
+    { id: 0, value: 10,  required: 20, name: 'Diamantový prach' },  // sapphire/diamond
+    { id: 1, value: 10,  required: 19, name: 'Zlatý nuget' },       // gold nugget
+    { id: 2, value: 20,  required: 18, name: 'Váček se zlatem' },   // purple pouch
+    { id: 3, value: 30,  required: 17, name: 'Vědro' },             // bucket
+    { id: 4, value: 50,  required: 16, name: 'Důlní vozík' },       // mine cart
+    { id: 5, value: 300, required: 15, name: 'Zlatá cihla' },       // gold bars — TARGET
+  ],
+  targetBarId: 5,
+  // Release schedule — movesLeft is already DECREMENTED when applyMatches runs.
+  // The last entry (ifMovesLeftAbove: 0) fires when movesLeft === 0 (last move played).
+  // Every earlier step caps below 100 % so the bar CANNOT complete before the last move.
+  targetRelease: [
+    { ifMovesLeftAbove: 10, maxFillRatio: 0.20 },  // ≤ 3 / 15 hits
+    { ifMovesLeftAbove: 6,  maxFillRatio: 0.45 },  // ≤ 6 / 15 hits
+    { ifMovesLeftAbove: 3,  maxFillRatio: 0.65 },  // ≤ 9 / 15 hits
+    { ifMovesLeftAbove: 0,  maxFillRatio: 0.93 },  // ≤ 13 / 15 — never complete while moves remain
+    { ifMovesLeftAbove: -1, maxFillRatio: 1.00 },  // last move (movesLeft === 0) — complete allowed
+  ],
+  hintDelayMs: 3000,
+};
+
+/* =========================================================================
+   SYMBOLS — bitmap assets cropped from the source game
+   ========================================================================= */
+const SYMBOL_SVG = [
+  `<div class="sym-img sym-img-0"></div>`,
+  `<div class="sym-img sym-img-1"></div>`,
+  `<div class="sym-img sym-img-2"></div>`,
+  `<div class="sym-img sym-img-3"></div>`,
+  `<div class="sym-img sym-img-4"></div>`,
+  `<div class="sym-img sym-img-5"></div>`,
+];
+
+/* Inline SVG fallback (kept for reference, not used) */
+const SYMBOL_SVG_OLD = [
+  // 0 Water drop (blue)
+  `<svg viewBox="0 0 40 40">
+    <defs><radialGradient id="wg0" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#b3e5fc"/><stop offset="55%" stop-color="#29b6f6"/><stop offset="100%" stop-color="#01579b"/>
+    </radialGradient></defs>
+    <path d="M20 4 C 12 16, 8 22, 8 28 A 12 12 0 0 0 32 28 C 32 22, 28 16, 20 4 Z"
+          fill="url(#wg0)" stroke="#01314f" stroke-width="1.5"/>
+    <ellipse cx="16" cy="22" rx="3" ry="5" fill="#fff" opacity="0.55"/>
+  </svg>`,
+
+  // 1 Gold nugget (rough chunks)
+  `<svg viewBox="0 0 40 40">
+    <defs><radialGradient id="wg1" cx="35%" cy="30%">
+      <stop offset="0%" stop-color="#fff59d"/><stop offset="55%" stop-color="#ffc107"/><stop offset="100%" stop-color="#ef6c00"/>
+    </radialGradient></defs>
+    <path d="M8 22 L 14 10 L 22 8 L 32 14 L 34 24 L 28 34 L 16 34 L 6 28 Z"
+          fill="url(#wg1)" stroke="#7a4500" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M14 12 L 20 14 L 18 20 L 12 18 Z" fill="#fff59d" opacity="0.55"/>
+    <path d="M24 22 L 28 26 L 24 30 L 20 26 Z" fill="#fff" opacity="0.25"/>
+  </svg>`,
+
+  // 2 Purple money pouch
+  `<svg viewBox="0 0 40 40">
+    <defs><radialGradient id="wg2" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#e1bee7"/><stop offset="50%" stop-color="#8e24aa"/><stop offset="100%" stop-color="#4a148c"/>
+    </radialGradient></defs>
+    <!-- tie -->
+    <path d="M14 10 Q 20 4 26 10 L 24 14 L 16 14 Z" fill="#5c3a1e" stroke="#2a1810" stroke-width="1"/>
+    <ellipse cx="20" cy="11" rx="4" ry="1.6" fill="#3d2817"/>
+    <!-- sack -->
+    <path d="M10 16 Q 6 24 10 32 Q 14 38 20 38 Q 26 38 30 32 Q 34 24 30 16 Z"
+          fill="url(#wg2)" stroke="#2a0d3e" stroke-width="1.5"/>
+    <!-- gold coin peeking -->
+    <circle cx="20" cy="26" r="5.5" fill="#ffd54f" stroke="#7a4500" stroke-width="1.2"/>
+    <text x="20" y="30" text-anchor="middle" font-size="8" font-weight="900" fill="#7a4500" font-family="Arial">$</text>
+  </svg>`,
+
+  // 3 Wooden bucket with gold
+  `<svg viewBox="0 0 40 40">
+    <defs>
+      <linearGradient id="wg3" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#a67c52"/><stop offset="100%" stop-color="#5c3a1e"/>
+      </linearGradient>
+    </defs>
+    <!-- handle -->
+    <path d="M10 18 Q 20 8 30 18" stroke="#3d2817" stroke-width="2" fill="none"/>
+    <!-- bucket body trapezoid -->
+    <path d="M8 18 L 32 18 L 30 36 L 10 36 Z" fill="url(#wg3)" stroke="#2a1810" stroke-width="1.5" stroke-linejoin="round"/>
+    <!-- bucket staves -->
+    <line x1="14" y1="18" x2="14.5" y2="36" stroke="#2a1810" stroke-width="0.9"/>
+    <line x1="20" y1="18" x2="20"   y2="36" stroke="#2a1810" stroke-width="0.9"/>
+    <line x1="26" y1="18" x2="25.5" y2="36" stroke="#2a1810" stroke-width="0.9"/>
+    <!-- rim -->
+    <ellipse cx="20" cy="18" rx="12" ry="3" fill="#7a4f28" stroke="#2a1810" stroke-width="1.2"/>
+    <!-- gold pile -->
+    <ellipse cx="20" cy="18" rx="10" ry="2.2" fill="#ffd54f"/>
+    <circle cx="15" cy="16" r="2.5" fill="#ffeb3b" stroke="#7a4500" stroke-width="0.8"/>
+    <circle cx="22" cy="15" r="2.2" fill="#ffc107" stroke="#7a4500" stroke-width="0.8"/>
+    <circle cx="26" cy="17" r="2"   fill="#ffd54f" stroke="#7a4500" stroke-width="0.8"/>
+  </svg>`,
+
+  // 4 Mine cart (TARGET — most distinctive)
+  `<svg viewBox="0 0 40 40">
+    <defs>
+      <linearGradient id="wg4" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#ef5350"/><stop offset="60%" stop-color="#c62828"/><stop offset="100%" stop-color="#7a1818"/>
+      </linearGradient>
+    </defs>
+    <!-- gold pile on top -->
+    <path d="M8 16 Q 14 10 20 10 Q 26 10 32 16 L 32 20 L 8 20 Z" fill="#ffd54f" stroke="#7a4500" stroke-width="1.2"/>
+    <circle cx="14" cy="14" r="2" fill="#ffeb3b" stroke="#7a4500" stroke-width="0.7"/>
+    <circle cx="20" cy="12" r="1.8" fill="#ffc107" stroke="#7a4500" stroke-width="0.7"/>
+    <circle cx="26" cy="14" r="2" fill="#ffeb3b" stroke="#7a4500" stroke-width="0.7"/>
+    <!-- cart body -->
+    <path d="M6 18 L 34 18 L 32 30 L 8 30 Z" fill="url(#wg4)" stroke="#4a0a0a" stroke-width="1.5" stroke-linejoin="round"/>
+    <!-- horizontal planks on cart -->
+    <line x1="8" y1="24" x2="32" y2="24" stroke="#4a0a0a" stroke-width="0.8"/>
+    <!-- rivets -->
+    <circle cx="10" cy="21" r="0.9" fill="#ffd54f"/>
+    <circle cx="30" cy="21" r="0.9" fill="#ffd54f"/>
+    <circle cx="10" cy="27" r="0.9" fill="#ffd54f"/>
+    <circle cx="30" cy="27" r="0.9" fill="#ffd54f"/>
+    <!-- wheels -->
+    <circle cx="12" cy="32" r="3.5" fill="#2a1810" stroke="#000" stroke-width="0.8"/>
+    <circle cx="28" cy="32" r="3.5" fill="#2a1810" stroke="#000" stroke-width="0.8"/>
+    <circle cx="12" cy="32" r="1.2" fill="#5c3a1e"/>
+    <circle cx="28" cy="32" r="1.2" fill="#5c3a1e"/>
+  </svg>`,
+
+  // 5 Stacked gold bars (teaser)
+  `<svg viewBox="0 0 40 40">
+    <defs>
+      <linearGradient id="wg5" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#fff59d"/><stop offset="60%" stop-color="#ffc107"/><stop offset="100%" stop-color="#c67100"/>
+      </linearGradient>
+    </defs>
+    <!-- back-right bar -->
+    <path d="M14 16 L 34 14 L 36 22 L 16 24 Z" fill="url(#wg5)" stroke="#7a4500" stroke-width="1.3" stroke-linejoin="round"/>
+    <!-- back-left bar -->
+    <path d="M4 18 L 22 16 L 24 24 L 6 26 Z" fill="url(#wg5)" stroke="#7a4500" stroke-width="1.3" stroke-linejoin="round"/>
+    <!-- front bar -->
+    <path d="M8 26 L 32 24 L 34 34 L 10 36 Z" fill="url(#wg5)" stroke="#7a4500" stroke-width="1.3" stroke-linejoin="round"/>
+    <!-- highlights -->
+    <path d="M10 28 L 30 26 L 30.5 29 L 10.5 31 Z" fill="#fff" opacity="0.35"/>
+  </svg>`
+];
+
+/* =========================================================================
+   ENGINE — pure logic, no DOM
+   ========================================================================= */
+class GameEngine {
+  constructor(config) {
+    this.config = config;
+    this.rows = config.gridRows;
+    this.cols = config.gridCols;
+    this.movesLeft = config.moves;
+    this.totalWin = 0;
+    this.progress = {};
+    config.bars.forEach(b => this.progress[b.id] = 0);
+    this.board = this.buildInitialBoard();
+  }
+
+  buildInitialBoard() {
+    let board;
+    let attempts = 0;
+    while (attempts++ < 100) {
+      board = [];
+      for (let r = 0; r < this.rows; r++) {
+        board[r] = [];
+        for (let c = 0; c < this.cols; c++) {
+          board[r][c] = this.pickInitialSymbol(board, r, c);
+        }
+      }
+      if (this.countPossibleMoves(board) >= 2) return board;
+    }
+    return board;
+  }
+
+  pickInitialSymbol(board, r, c) {
+    const avoid = new Set();
+    if (c >= 2 && board[r][c - 1] === board[r][c - 2]) avoid.add(board[r][c - 1]);
+    if (r >= 2 && board[r - 1][c] === board[r - 2][c]) avoid.add(board[r - 1][c]);
+    const pool = [0, 1, 2, 3, 4, 4, 5].filter(s => !avoid.has(s));
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  countPossibleMoves(board) {
+    let moves = 0;
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        if (c + 1 < this.cols && this.wouldMatch(board, r, c, r, c + 1)) moves++;
+        if (r + 1 < this.rows && this.wouldMatch(board, r, c, r + 1, c)) moves++;
+      }
+    }
+    return moves;
+  }
+
+  findHint() {
+    const moves = this.findAllPossibleMoves();
+    if (!moves.length) return null;
+    const m = moves[0];
+    const b = this.board;
+    [b[m.r1][m.c1], b[m.r2][m.c2]] = [b[m.r2][m.c2], b[m.r1][m.c1]];
+    const matches = this.findMatches();
+    const in1 = matches.has(m.r1 + '_' + m.c1);
+    const in2 = matches.has(m.r2 + '_' + m.c2);
+    [b[m.r1][m.c1], b[m.r2][m.c2]] = [b[m.r2][m.c2], b[m.r1][m.c1]];
+    let src, dst;
+    if (in1 && !in2) { src = { r: m.r2, c: m.c2 }; dst = { r: m.r1, c: m.c1 }; }
+    else if (in2 && !in1) { src = { r: m.r1, c: m.c1 }; dst = { r: m.r2, c: m.c2 }; }
+    else { src = { r: m.r1, c: m.c1 }; dst = { r: m.r2, c: m.c2 }; }
+    return { source: src, dr: dst.r - src.r, dc: dst.c - src.c };
+  }
+
+  findAllPossibleMoves(board = this.board) {
+    const moves = [];
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        if (c + 1 < this.cols && this.wouldMatch(board, r, c, r, c + 1)) {
+          moves.push({ r1: r, c1: c, r2: r, c2: c + 1 });
+        }
+        if (r + 1 < this.rows && this.wouldMatch(board, r, c, r + 1, c)) {
+          moves.push({ r1: r, c1: c, r2: r + 1, c2: c });
+        }
+      }
+    }
+    for (let i = moves.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [moves[i], moves[j]] = [moves[j], moves[i]];
+    }
+    return moves;
+  }
+
+  wouldMatch(board, r1, c1, r2, c2) {
+    const a = board[r1][c1], b = board[r2][c2];
+    board[r1][c1] = b; board[r2][c2] = a;
+    const hasMatch = this.findMatches(board).size > 0;
+    board[r1][c1] = a; board[r2][c2] = b;
+    return hasMatch;
+  }
+
+  findMatches(board = this.board) {
+    const matched = new Set();
+    const key = (r, c) => r + '_' + c;
+    for (let r = 0; r < this.rows; r++) {
+      let run = 1;
+      for (let c = 1; c <= this.cols; c++) {
+        const same = c < this.cols && board[r][c] === board[r][c - 1] && board[r][c] != null;
+        if (same) { run++; } else {
+          if (run >= 3) for (let k = c - run; k < c; k++) matched.add(key(r, k));
+          run = 1;
+        }
+      }
+    }
+    for (let c = 0; c < this.cols; c++) {
+      let run = 1;
+      for (let r = 1; r <= this.rows; r++) {
+        const same = r < this.rows && board[r][c] === board[r - 1][c] && board[r][c] != null;
+        if (same) { run++; } else {
+          if (run >= 3) for (let k = r - run; k < r; k++) matched.add(key(k, c));
+          run = 1;
+        }
+      }
+    }
+    return matched;
+  }
+
+  areAdjacent(r1, c1, r2, c2) {
+    return Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1;
+  }
+
+  currentTargetCap() {
+    const schedule = this.config.targetRelease || [{ ifMovesLeftAbove: -1, maxFillRatio: 1 }];
+    for (const step of schedule) {
+      if (this.movesLeft > step.ifMovesLeftAbove) return step.maxFillRatio;
+    }
+    return 1;
+  }
+
+  pickRiggedSymbol() {
+    const targetId = this.config.targetBarId;
+    const targetBar = this.config.bars.find(b => b.id === targetId);
+    const movesLeft = this.movesLeft;
+    const needed = targetBar.required - this.progress[targetId];
+
+    let targetWeight;
+    if (movesLeft <= 0) {
+      // Last move cascades — flood board so cascades naturally complete the bar
+      targetWeight = 0.98;
+    } else if (movesLeft <= 1) {
+      // Penultimate spawn — load board with targets ahead of the last move
+      targetWeight = 0.75;
+    } else if (needed <= 0) {
+      // Bar already complete
+      targetWeight = 0.0;
+    } else if (movesLeft <= 3) {
+      targetWeight = 0.6;
+    } else if (movesLeft <= 6) {
+      targetWeight = 0.3;
+    } else if (movesLeft <= 10) {
+      targetWeight = 0.18;
+    } else {
+      targetWeight = 0.1;
+    }
+
+    if (Math.random() < targetWeight) return targetId;
+
+    // Build pool from all non-target, completable bars.
+    // Do NOT filter by remaining — applyMatches already caps non-target bars at
+    // (required - 1) so they can never accidentally complete; filtering them out
+    // here just causes the pool to shrink to the teaser-only bar and floods the
+    // board with gold bars.
+    // Exclude teaser bars (required >= 999) — they should stay rare on the board.
+    const pool = [];
+    for (const bar of this.config.bars) {
+      if (bar.id === targetId) continue;
+      if (bar.required >= 999) continue;
+      pool.push(bar.id);
+    }
+    if (pool.length === 0) return targetId;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  applyMatches(matched) {
+    const counts = {};
+    matched.forEach(k => {
+      const [r, c] = k.split('_').map(Number);
+      const sym = this.board[r][c];
+      counts[sym] = (counts[sym] || 0) + 1;
+    });
+    const delta = { progress: {}, winAdded: 0, completed: [] };
+    for (const symStr in counts) {
+      const sym = Number(symStr);
+      const bar = this.config.bars.find(b => b.id === sym);
+      if (!bar) continue;
+      const before = this.progress[sym];
+      let after = before + counts[sym];
+      if (sym !== this.config.targetBarId) {
+        // Non-target bars are capped at (required - 1) — they only complete in finalizeWin.
+        after = Math.min(after, bar.required - 1);
+      }
+      // Target bar: NO hard cap — every matched symbol counts fully.
+      // Early completion (rare, via lucky cascade) triggers win immediately.
+      // On-time completion (last move) is guaranteed by prepareLastMove + high spawn weight.
+      this.progress[sym] = after;
+      delta.progress[sym] = after;
+      if (before < bar.required && after >= bar.required) {
+        delta.completed.push(sym);
+        delta.winAdded += bar.value;
+        this.totalWin += bar.value;
+      }
+    }
+    matched.forEach(k => {
+      const [r, c] = k.split('_').map(Number);
+      this.board[r][c] = null;
+    });
+    return delta;
+  }
+
+  collapse() {
+    const fallers = [];
+    for (let c = 0; c < this.cols; c++) {
+      let writeRow = this.rows - 1;
+      for (let r = this.rows - 1; r >= 0; r--) {
+        if (this.board[r][c] != null) {
+          if (r !== writeRow) {
+            this.board[writeRow][c] = this.board[r][c];
+            this.board[r][c] = null;
+            fallers.push({ fromRow: r, toRow: writeRow, col: c });
+          }
+          writeRow--;
+        }
+      }
+    }
+    const newSpawns = [];
+    for (let c = 0; c < this.cols; c++) {
+      for (let r = 0; r < this.rows; r++) {
+        if (this.board[r][c] == null) {
+          const sym = this.pickRiggedSymbol();
+          this.board[r][c] = sym;
+          newSpawns.push({ row: r, col: c, sym });
+        }
+      }
+    }
+    return { fallers, newSpawns };
+  }
+
+  // Called by the View after the second-to-last move's cascades settle (movesLeft === 1).
+  // Guarantees that the board has at least one legal swap that produces a target match,
+  // so the win happens organically through the player's last move — no force-fill.
+  // Returns [{r, c, sym}] for each cell changed (empty array = nothing needed).
+  prepareLastMove() {
+    const id = this.config.targetBarId;
+
+    // Fast-path: check if any current legal move already produces a target match.
+    for (const m of this.findAllPossibleMoves()) {
+      const b = this.board;
+      [b[m.r1][m.c1], b[m.r2][m.c2]] = [b[m.r2][m.c2], b[m.r1][m.c1]];
+      let hit = false;
+      this.findMatches(b).forEach(k => {
+        const [r, c] = k.split('_').map(Number);
+        if (b[r][c] === id) hit = true;
+      });
+      [b[m.r1][m.c1], b[m.r2][m.c2]] = [b[m.r2][m.c2], b[m.r1][m.c1]];
+      if (hit) return []; // already guaranteed — nothing to do
+    }
+
+    // Board has no target-producing move. Plant the pattern: [id][id][·][id] in the
+    // middle row at cols 0-3. Swapping col 2 ↔ col 3 creates id id id → target match.
+    const r = Math.floor(this.rows / 2);
+    const changes = [];
+    [[r, 0, id], [r, 1, id], [r, 3, id]].forEach(([row, c, sym]) => {
+      if (this.board[row][c] !== sym) {
+        this.board[row][c] = sym;
+        changes.push({ r: row, c, sym });
+      }
+    });
+    // Col 2 must remain non-target so the board stays stable (no immediate 3-in-a-row).
+    if (this.board[r][2] === id) {
+      const alt = this.config.bars.find(b => b.id !== id).id;
+      this.board[r][2] = alt;
+      changes.push({ r, c: 2, sym: alt });
+    }
+    return changes;
+  }
+}
+
+/* =========================================================================
+   VIEW — DOM rendering + animation
+   ========================================================================= */
+class GameView {
+  constructor(engine, dom) {
+    this.engine = engine;
+    this.dom = dom;
+    this.tiles = {};
+    this.tileIdSeq = 0;
+    this.busy = false;
+    this.selected = null;
+    this.barEls = {};
+    this.cellPx = 0;
+    this.gapPx = 0;
+
+    this.hintTimer = null;
+    this.hintTiles = [];
+
+    this.computeSize();
+    this.renderBars();
+    this.renderBoard();
+    this.updateHeader();
+    this.bindEvents();
+    this.scheduleHint();
+
+    window.addEventListener('resize', () => {
+      this.computeSize();
+      this.repositionAll(false);
+    });
+
+    dom.ctaBtn.href = engine.config.ctaUrl;
+    dom.ctaBtn.textContent = engine.config.ctaText;
+    dom.winTitle.textContent = engine.config.winTitle;
+  }
+
+  computeSize() {
+    const styles = getComputedStyle(document.documentElement);
+    this.cellPx = parseInt(styles.getPropertyValue('--cell'));
+    this.gapPx  = parseInt(styles.getPropertyValue('--gap'));
+  }
+
+  cellXY(row, col) {
+    return {
+      x: col * (this.cellPx + this.gapPx),
+      y: row * (this.cellPx + this.gapPx)
+    };
+  }
+
+  makeTile(sym, row, col, fromRowOverride) {
+    const el = document.createElement('div');
+    el.className = `tile sym-${sym}`;
+    el.dataset.id = ++this.tileIdSeq;
+    el.dataset.sym = sym;
+    const inner = document.createElement('div');
+    inner.className = 'tile-inner';
+    inner.innerHTML = SYMBOL_SVG[sym];
+    el.appendChild(inner);
+
+    const startRow = (fromRowOverride !== undefined) ? fromRowOverride : row;
+    const { x: sx, y: sy } = this.cellXY(startRow, col);
+    el.style.transform = `translate(${sx}px, ${sy}px)`;
+    el.dataset.row = row;
+    el.dataset.col = col;
+    this.dom.grid.appendChild(el);
+    if (fromRowOverride !== undefined) {
+      void el.offsetHeight;
+      const { x, y } = this.cellXY(row, col);
+      el.style.transform = `translate(${x}px, ${y}px)`;
+      el.classList.add('fall-in');
+    }
+    return el;
+  }
+
+  renderBoard() {
+    this.dom.grid.innerHTML = '';
+    this.tiles = {};
+    for (let r = 0; r < this.engine.rows; r++) {
+      for (let c = 0; c < this.engine.cols; c++) {
+        const sym = this.engine.board[r][c];
+        const t = this.makeTile(sym, r, c);
+        this.tiles[r + '_' + c] = t;
+      }
+    }
+  }
+
+  renderBars() {
+    this.dom.bars.innerHTML = '';
+    this.engine.config.bars.forEach(bar => {
+      const el = document.createElement('div');
+      el.className = 'bar';
+      el.dataset.barId = bar.id;
+      el.innerHTML = `
+        <div class="bar-icon">${SYMBOL_SVG[bar.id]}</div>
+        <div class="bar-main">
+          <div class="bar-value">${bar.value} ${this.engine.config.currency}</div>
+          <div class="bar-track"><div class="bar-fill"></div></div>
+        </div>
+        <div class="bar-count">${bar.required < 999 ? bar.required : '∞'}</div>
+      `;
+      this.dom.bars.appendChild(el);
+      this.barEls[bar.id] = el;
+    });
+  }
+
+  updateHeader() {
+    this.dom.movesDisplay.textContent = this.engine.movesLeft;
+    this.dom.winDisplay.textContent = `${this.engine.totalWin} ${this.engine.config.currency}`;
+  }
+
+  updateBar(barId) {
+    const bar = this.engine.config.bars.find(b => b.id === barId);
+    const el = this.barEls[barId];
+    const pct = Math.min(100, (this.engine.progress[barId] / bar.required) * 100);
+    const fill = el.querySelector('.bar-fill');
+    const countEl = el.querySelector('.bar-count');
+    fill.style.width = pct + '%';
+    // Show remaining count (counts down as player progresses)
+    const remaining = Math.max(0, bar.required - this.engine.progress[barId]);
+    countEl.textContent = bar.required < 999 ? remaining : '∞';
+    if (pct >= 100) el.classList.add('complete');
+    el.classList.add('filled');
+    setTimeout(() => el.classList.remove('filled'), 700);
+  }
+
+  repositionAll(animate = true) {
+    for (const key in this.tiles) {
+      const [r, c] = key.split('_').map(Number);
+      const t = this.tiles[key];
+      if (!animate) { t.style.transition = 'none'; void t.offsetHeight; }
+      const { x, y } = this.cellXY(r, c);
+      t.style.transform = `translate(${x}px, ${y}px)`;
+      if (!animate) { void t.offsetHeight; t.style.transition = ''; }
+    }
+  }
+
+  scheduleHint() {
+    this.clearHint();
+    if (this.engine.movesLeft <= 0) return;
+    const delay = this.engine.config.hintDelayMs || 4000;
+    this.hintTimer = setTimeout(() => this.showHint(), delay);
+  }
+
+  showHint() {
+    if (this.busy || this.engine.movesLeft <= 0) return;
+    const hint = this.engine.findHint();
+    if (!hint) return;
+    const tile = this.tiles[hint.source.r + '_' + hint.source.c];
+    if (!tile) return;
+    const nudgePx = Math.round(this.cellPx * 0.16);
+    tile.style.setProperty('--hint-dx', (hint.dc * nudgePx) + 'px');
+    tile.style.setProperty('--hint-dy', (hint.dr * nudgePx) + 'px');
+    tile.classList.add('hint');
+    this.hintTiles = [tile];
+  }
+
+  clearHint() {
+    if (this.hintTimer) {
+      clearTimeout(this.hintTimer);
+      this.hintTimer = null;
+    }
+    if (this.hintTiles.length) {
+      this.hintTiles.forEach(t => {
+        t.classList.remove('hint');
+        t.style.removeProperty('--hint-dx');
+        t.style.removeProperty('--hint-dy');
+      });
+      this.hintTiles = [];
+    }
+  }
+
+  noteUserActivity() {
+    this.scheduleHint();
+  }
+
+  bindEvents() {
+    const grid = this.dom.grid;
+    const DRAG_THRESHOLD = 8;
+    let drag = null;
+
+    const snapBack = (d) => {
+      const p = this.cellXY(d.r, d.c);
+      d.tile.style.transform = `translate(${p.x}px, ${p.y}px)`;
+    };
+
+    grid.addEventListener('pointerdown', (e) => {
+      if (this.busy) return;
+      const tile = e.target.closest('.tile');
+      if (!tile) return;
+      e.preventDefault();
+      this.clearHint();
+      this.noteUserActivity();
+      try { tile.setPointerCapture(e.pointerId); } catch (_) {}
+      drag = {
+        pointerId: e.pointerId,
+        tile,
+        r: Number(tile.dataset.row),
+        c: Number(tile.dataset.col),
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false,
+      };
+    });
+
+    grid.addEventListener('pointermove', (e) => {
+      if (!drag || drag.pointerId !== e.pointerId) return;
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      const absX = Math.abs(dx), absY = Math.abs(dy);
+      if (!drag.moved) {
+        if (Math.max(absX, absY) < DRAG_THRESHOLD) return;
+        drag.moved = true;
+        drag.tile.classList.add('dragging');
+        drag.tile.style.transition = 'none';
+      }
+      const maxOffset = this.cellPx;
+      let offX = 0, offY = 0;
+      if (absX >= absY) {
+        offX = Math.max(-maxOffset, Math.min(maxOffset, dx));
+      } else {
+        offY = Math.max(-maxOffset, Math.min(maxOffset, dy));
+      }
+      const p = this.cellXY(drag.r, drag.c);
+      drag.tile.style.transform = `translate(${p.x + offX}px, ${p.y + offY}px)`;
+    });
+
+    const endDrag = (e) => {
+      if (!drag || drag.pointerId !== e.pointerId) return;
+      const d = drag; drag = null;
+      d.tile.classList.remove('dragging');
+      d.tile.style.transition = '';
+
+      if (!d.moved) {
+        this.handleTap(d.r, d.c, d.tile);
+        return;
+      }
+
+      const dx = e.clientX - d.startX;
+      const dy = e.clientY - d.startY;
+      const absX = Math.abs(dx), absY = Math.abs(dy);
+
+      const commitThreshold = this.cellPx * 0.4;
+      if (Math.max(absX, absY) < commitThreshold) {
+        snapBack(d);
+        return;
+      }
+
+      let dr = 0, dc = 0;
+      if (absX >= absY) dc = dx > 0 ? 1 : -1;
+      else              dr = dy > 0 ? 1 : -1;
+
+      const r2 = d.r + dr, c2 = d.c + dc;
+      if (r2 < 0 || r2 >= this.engine.rows || c2 < 0 || c2 >= this.engine.cols) {
+        snapBack(d);
+        return;
+      }
+
+      if (this.selected) {
+        this.selected.el.classList.remove('selected');
+        this.selected = null;
+      }
+      this.trySwap(d.r, d.c, r2, c2);
+    };
+
+    grid.addEventListener('pointerup',     endDrag);
+    grid.addEventListener('pointercancel', (e) => {
+      if (!drag || drag.pointerId !== e.pointerId) return;
+      const d = drag; drag = null;
+      d.tile.classList.remove('dragging');
+      d.tile.style.transition = '';
+      snapBack(d);
+    });
+  }
+
+  handleTap(r, c, tileEl) {
+    if (!this.selected) {
+      this.selected = { r, c, el: tileEl };
+      tileEl.classList.add('selected');
+      return;
+    }
+    if (this.selected.r === r && this.selected.c === c) {
+      tileEl.classList.remove('selected');
+      this.selected = null;
+      return;
+    }
+    if (this.engine.areAdjacent(this.selected.r, this.selected.c, r, c)) {
+      const prev = this.selected;
+      prev.el.classList.remove('selected');
+      this.selected = null;
+      this.trySwap(prev.r, prev.c, r, c);
+    } else {
+      this.selected.el.classList.remove('selected');
+      this.selected = { r, c, el: tileEl };
+      tileEl.classList.add('selected');
+    }
+  }
+
+  async trySwap(r1, c1, r2, c2) {
+    this.busy = true;
+    const b = this.engine.board;
+    [b[r1][c1], b[r2][c2]] = [b[r2][c2], b[r1][c1]];
+    const k1 = r1 + '_' + c1, k2 = r2 + '_' + c2;
+    const t1 = this.tiles[k1], t2 = this.tiles[k2];
+    this.tiles[k1] = t2; this.tiles[k2] = t1;
+    t1.dataset.row = r2; t1.dataset.col = c2;
+    t2.dataset.row = r1; t2.dataset.col = c1;
+    const p1 = this.cellXY(r2, c2);
+    const p2 = this.cellXY(r1, c1);
+    t1.style.transform = `translate(${p1.x}px, ${p1.y}px)`;
+    t2.style.transform = `translate(${p2.x}px, ${p2.y}px)`;
+    await sleep(320);
+
+    const matches = this.engine.findMatches();
+    if (matches.size === 0) {
+      [b[r1][c1], b[r2][c2]] = [b[r2][c2], b[r1][c1]];
+      this.tiles[k1] = t1; this.tiles[k2] = t2;
+      t1.dataset.row = r1; t1.dataset.col = c1;
+      t2.dataset.row = r2; t2.dataset.col = c2;
+      const q1 = this.cellXY(r1, c1);
+      const q2 = this.cellXY(r2, c2);
+      t1.style.transform = `translate(${q1.x}px, ${q1.y}px)`;
+      t2.style.transform = `translate(${q2.x}px, ${q2.y}px)`;
+      await sleep(320);
+      this.busy = false;
+      this.scheduleHint();
+      return;
+    }
+
+    this.engine.movesLeft--;
+    this.updateHeader();
+    const gameOver = await this.resolveMatches(matches);
+    if (gameOver) {
+      this.busy = false;
+      return;
+    }
+
+    // After the second-to-last move settles: ensure the last move can produce a target match.
+    // prepareLastMove() may silently adjust a few board cells; we re-spawn those tiles
+    // with a fall-in animation so the change looks like a natural spawn.
+    if (this.engine.movesLeft === 1) {
+      const changed = this.engine.prepareLastMove();
+      for (const { r, c, sym } of changed) {
+        const key = r + '_' + c;
+        if (this.tiles[key]) this.tiles[key].remove();
+        const el = this.makeTile(sym, r, c, r - 1); // fall in from one row above
+        this.tiles[key] = el;
+      }
+      if (changed.length > 0) await sleep(350);
+    }
+
+    if (this.engine.movesLeft <= 0) {
+      await sleep(400);
+      this.finalizeWin();
+    }
+
+    this.busy = false;
+    this.scheduleHint();
+  }
+
+  async resolveMatches(initialMatches) {
+    let matches = initialMatches;
+    while (matches.size > 0) {
+      matches.forEach(k => {
+        const t = this.tiles[k];
+        if (t) t.classList.add('matched');
+      });
+      const delta = this.engine.applyMatches(matches);
+      for (const symStr in delta.progress) {
+        this.updateBar(Number(symStr));
+      }
+      if (delta.winAdded > 0) this.updateHeader();
+
+      await sleep(320);
+
+      matches.forEach(k => {
+        const t = this.tiles[k];
+        if (t) t.remove();
+        delete this.tiles[k];
+      });
+
+      // Target bar completed through natural matches — end the game immediately.
+      // (Normally happens on the last move; rarely a lucky cascade finishes it earlier.)
+      if (delta.completed.includes(this.engine.config.targetBarId)) {
+        await sleep(200);
+        this.finalizeWin();
+        return true; // signal game-over to trySwap
+      }
+
+      const { newSpawns } = this.engine.collapse();
+
+      const b = this.engine.board;
+      const existingByCol = {};
+      for (const key in this.tiles) {
+        const t = this.tiles[key];
+        const col = Number(t.dataset.col);
+        (existingByCol[col] = existingByCol[col] || []).push({ key, t, row: Number(t.dataset.row) });
+      }
+      this.tiles = {};
+      for (let c = 0; c < this.engine.cols; c++) {
+        const list = (existingByCol[c] || []).sort((a, b) => b.row - a.row);
+        const newSet = new Set(newSpawns.filter(n => n.col === c).map(n => n.row));
+        let existingIdx = 0;
+        for (let r = this.engine.rows - 1; r >= 0; r--) {
+          if (b[r][c] == null) continue;
+          if (newSet.has(r)) continue;
+          const ex = list[existingIdx++];
+          if (!ex) continue;
+          ex.t.dataset.row = r;
+          ex.t.dataset.col = c;
+          const { x, y } = this.cellXY(r, c);
+          ex.t.style.transform = `translate(${x}px, ${y}px)`;
+          this.tiles[r + '_' + c] = ex.t;
+        }
+      }
+
+      newSpawns.forEach(({ row, col, sym }) => {
+        const spawnsInCol = newSpawns.filter(n => n.col === col && n.row <= row);
+        const indexInStack = spawnsInCol.findIndex(n => n.row === row);
+        const startRow = -1 - (spawnsInCol.length - 1 - indexInStack);
+        const el = this.makeTile(sym, row, col, startRow);
+        this.tiles[row + '_' + col] = el;
+      });
+
+      await sleep(360);
+
+      matches = this.engine.findMatches();
+      if (matches.size > 0) await sleep(120);
+    }
+  }
+
+  finalizeWin() {
+    this.clearHint();
+    // Win was produced organically through symbol matches — no force-fill.
+    // Normalise the displayed total to finalWin and show the overlay.
+    this.engine.totalWin = this.engine.config.finalWin;
+    this.updateHeader();
+    setTimeout(() => this.showWinOverlay(), 600);
+  }
+
+  showWinOverlay() {
+    const o = this.dom.overlay;
+    this.dom.winAmount.textContent = `${this.engine.config.finalWin} ${this.engine.config.currency}`;
+    this.dom.winMessage.textContent = this.engine.config.winMessage;
+    o.classList.add('show');
+    this.spawnConfetti(o.querySelector('.win-card'));
+  }
+
+  spawnConfetti(host) {
+    const colors = ['#ffd54f', '#ff7043', '#ffeb3b', '#8bc34a', '#c62828', '#ffecb3'];
+    for (let i = 0; i < 30; i++) {
+      const c = document.createElement('span');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 100 + '%';
+      c.style.background = colors[Math.floor(Math.random() * colors.length)];
+      c.style.animationDuration = (1.4 + Math.random() * 1.8) + 's';
+      c.style.animationDelay = (Math.random() * 0.6) + 's';
+      c.style.transform = `rotate(${Math.random() * 360}deg)`;
+      host.appendChild(c);
+      setTimeout(() => c.remove(), 3500);
+    }
+  }
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+window.addEventListener('DOMContentLoaded', () => {
+  const dom = {
+    grid:          document.getElementById('grid'),
+    bars:          document.getElementById('bars'),
+    movesDisplay:  document.getElementById('moves-display'),
+    winDisplay:    document.getElementById('win-display'),
+    overlay:       document.getElementById('overlay'),
+    winAmount:     document.getElementById('win-amount'),
+    winMessage:    document.getElementById('win-message'),
+    winTitle:      document.querySelector('.win-title'),
+    ctaBtn:        document.getElementById('cta-btn'),
+  };
+
+  const engine = new GameEngine(gameConfig);
+  const view   = new GameView(engine, dom);
+  dom.movesDisplay.textContent = engine.movesLeft;
+});
+</script>
+</body>
+</html>

@@ -3,3 +3,9 @@ node_modules/
 *.log
 .env
 .env.local
+
+# Dev artifacts
+assets-manifest.json
+
+# Claude local settings (per-machine)
+.claude/settings.local.json

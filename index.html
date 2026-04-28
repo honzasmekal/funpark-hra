@@ -67,6 +67,29 @@
     z-index: 1;
   }
 
+  /* Brand panel — Allwyn (small) + FUNPARK (larger) above the game */
+  .brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 14px;
+    z-index: 2;
+    position: relative;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55));
+  }
+  .brand-allwyn {
+    width: 86px;
+    height: auto;
+    /* recolor dark-teal SVG to a light cream that reads on the cave background */
+    filter: brightness(0) invert(1) opacity(0.92);
+  }
+  .brand-funpark {
+    width: 220px;
+    height: auto;
+    max-width: 70vw;
+  }
+
   /* Header: balance + moves + total-win */
   .header {
     position: relative;
@@ -510,24 +533,43 @@
   }
 
   /* Responsive */
+  @media (max-width: 480px) {
+    body { padding: 6px 0 8px; }
+    .game { padding: 10px 6px 14px; }
+    .header { padding: 6px 4px; }
+    .brand { margin-bottom: 10px; gap: 6px; }
+    .brand-allwyn { width: 72px; }
+    .brand-funpark { width: 190px; }
+  }
   @media (max-width: 420px) {
     :root { --cell: 48px; }
     .win-amount { font-size: 54px; }
     .moves-sign { min-width: 95px; padding: 6px 12px; }
   }
   @media (max-width: 380px) {
-    :root { --cell: 44px; --gap: 2px; }
+    :root { --cell: 46px; --gap: 2px; }
+    .game { padding: 8px 2px 12px; }
+    .header { padding: 4px 2px; }
     .bars { grid-template-columns: 1fr; }
     .bar-value { font-size: 10px; }
     .bar-count { width: 20px; height: 20px; font-size: 10px; }
+    .brand-allwyn { width: 64px; }
+    .brand-funpark { width: 170px; }
   }
   @media (max-width: 340px) {
-    :root { --cell: 40px; }
+    :root { --cell: 42px; }
+    .game { padding: 8px 0 12px; }
   }
 </style>
 </head>
 <body>
   <div class="game" id="game">
+    <!-- Brand: Allwyn (small) + FUNPARK (larger), centred above the game -->
+    <div class="brand">
+      <img class="brand-allwyn"  src="allwyn.svg"        alt="Allwyn" />
+      <img class="brand-funpark" src="funpark-logo.svg"  alt="FUNPARK" />
+    </div>
+
     <!-- Prospector mascot (CSS-drawn) -->
     <svg class="mascot" viewBox="0 0 64 90" aria-hidden="true">
       <!-- hat -->
